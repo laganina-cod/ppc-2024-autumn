@@ -28,7 +28,7 @@ TEST(laganina_e_readers_writers_mpi, Test_1_second) {
 
   if (world.rank() == 0) {
     taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&time));
-	//////hhhh
+	//////hhhhforcommit
     taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(&out));
   }
 
