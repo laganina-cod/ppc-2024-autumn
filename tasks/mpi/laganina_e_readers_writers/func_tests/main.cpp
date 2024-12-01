@@ -17,17 +17,17 @@ std::vector<int> laganina_e_readers_writers_mpi::getRandomVector(int sz) {
   return vec;
 }
 
-TEST(laganina_e_readers_writers_mpi, Test_1_second) {
+TEST(laganina_e_readers_writers_mpi, Test_3_iter) {
   boost::mpi::communicator world;
-  
-  int time=1;
+ 
+  int iter=1000000;
   int out=0;
   
   // Create TaskData
   std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
 
   if (world.rank() == 0) {
-    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&time));
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&iter));
 	//////hhhhforcommit
     taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(&out));
   }
@@ -41,10 +41,11 @@ TEST(laganina_e_readers_writers_mpi, Test_1_second) {
   if(world.size()!=1){
   
   bool correct=(out >= 1 )&& (out<= 999);
+  
   ASSERT_EQ(correct,true);
   }
   else{
-	  ASSERT_EQ(true,true);
+	 ASSERT_EQ(true,true);
   }
 }
 

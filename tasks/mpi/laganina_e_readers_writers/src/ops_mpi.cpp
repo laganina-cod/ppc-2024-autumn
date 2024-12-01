@@ -7,7 +7,7 @@
 bool laganina_e_readers_writers_mpi::TestMPITaskParallel::pre_processing() {
   internal_order_test();
   auto* ptr = reinterpret_cast<int*>(taskData->inputs[0]);
-  time = ptr[0];
+  iter = ptr[0];
   return true;
   
 }
@@ -15,8 +15,8 @@ bool laganina_e_readers_writers_mpi::TestMPITaskParallel::pre_processing() {
 bool laganina_e_readers_writers_mpi::TestMPITaskParallel::validation() {
   internal_order_test();
   auto* ptr = reinterpret_cast<int*>(taskData->inputs[0]);
-  int time_ = ptr[0];
-  return(time_>=0);
+  int iter_ = ptr[0];
+  return(iter_>=0);
 }
 
 bool laganina_e_readers_writers_mpi::TestMPITaskParallel::run() {
@@ -24,77 +24,93 @@ bool laganina_e_readers_writers_mpi::TestMPITaskParallel::run() {
   
   int rank = world.rank();
   int size = world.size();
+  
   if(size==1){
 	  return true;
   }
   if (rank == 0) {
         std::string sharedResource = "";	
-        bool writerBusy = false;        // флаг работы писателя
-		int numReaders = 0;
+        bool writerBusy = false;
+		int numReaders =0;
+     	// флаг работы писателя// флаг работы писателя
 		
 		//boost::mpi::timer timer;
+		std::string source="";
 		
-        while ((((float)clock()) / CLOCKS_PER_SEC )<=time) {
-			int source;
-			world.recv(boost::mpi::any_source,2,source );
-			int requestType;
-          
-            world.recv(boost::mpi::any_source,1,requestType ); // получение сообщения от читателя или писателя
+		std::string requestType=""; 
+	    bool terminate=false;
+		int requestType_=0;
+		int source_=0;
+		int i=0;
+        while ((i<iter)&&(!terminate)) {
+		
+			terminate=true;
+			world.irecv(boost::mpi::any_source,2,source );
+			if(source!=""){
+			source_=std::stoi(source);}
+         
+            world.irecv(source_,1,requestType ); // получение сообщения от читателя или писателя
            
-            
-            
+            if(requestType!=""){
+            requestType_=std::stoi(requestType);}
 			
 
-            if (requestType == 1) { // Запрос на чтение
+            if (requestType_ == 1) { // Запрос на чтение
 			    
                 
                     // Отправка ответа  на чтение
-					world.send(source,3,!writerBusy);
-                    world.send(source, 4, sharedResource);
+					world.send(source_,3,!writerBusy);
+                    world.send(source_, 4, sharedResource);
                     // Увеличиваем счетчик читателей
 					if(!writerBusy){
                     numReaders++;
 					}
                 
             } 
-			else if (requestType == 2) { // Запрос на запись
+			else if (requestType_ == 2) { // Запрос на запись
                 if ((!writerBusy)&&(numReaders==0)) {
                     writerBusy = true;
 				}
                     // Отправляем разрешение на запись
-					world.send(source, 5,(!writerBusy)&&(numReaders==0));
-                    world.send(source, 6,sharedResource);
+					world.send(source_, 5,(!writerBusy)&&(numReaders==0));
+                    world.send(source_, 6,sharedResource);
                 
             } 
-			else if (requestType == 3) { // Завершение чтения
+			else if (requestType_ == 3) { // Завершение чтения
                 numReaders--;
             } 
-			else if (requestType == 4) {
+			else if (requestType_ == 4) {
 				// Завершение записи
 				std::string finishdata;
-				world.recv(source,7, finishdata);
+				world.recv(source_,7, finishdata);
 				sharedResource=finishdata;
                 writerBusy = false;
                 
             }
+			i++;
+			terminate=false;
         }
-		
+		if(sharedResource.length()>=2){
 		std::string rank_str=sharedResource.substr(sharedResource.length() - 3);
 		res_=std::stoi(rank_str);
-		
+		}
+		return true;
 		
     } 
 	else {
+		int i=0;
         // Читатели и писатели (все процессы, кроме 0)
         int readerOrWriter = rank % 2; // 0 - читатель, 1 - писатель
         if (readerOrWriter == 0) { // Читатель
-            while((((float)clock()) / CLOCKS_PER_SEC )<=time){
+            while (i<iter) {
                 // Запрос на чтение
-                
-                world.send(0,2,rank); 
-                world.send(0, 1,1);
+                //int rank_=rank;
+				std::string rank_= std::to_string(rank);
+                world.send(0,2,rank_); 
+				
+                world.send(0, 1,std::to_string(1));
                           
-                int allowed;
+                int allowed=1;
                 world.recv(0,3,allowed);
                 std::string requestMSg;
 			    world.recv(0,4,requestMSg);
@@ -102,25 +118,31 @@ bool laganina_e_readers_writers_mpi::TestMPITaskParallel::run() {
                 if (allowed==1){
                     std::string data;
 					data=requestMSg;
+					
+					world.send(0,2,rank_); 
+				
+					world.send(0, 1,std::to_string(3));
                 }
                 
                 //Запрос завершения чтения
     
-                world.send(0,2,rank); 
-                world.send(0, 1,3);
-            }
+               i++; 
+           }
         } 
 		else { // Писатель
-            while((((float)clock()) / CLOCKS_PER_SEC )<=time){
+		
+            while(i<iter){
                 // Запрос на запись
-     
-                world.send(0,2 ,rank);
-				world.send(0,1 ,2);
+                //int rank_=rank;
+				std::string rank_= std::to_string(rank);
+                world.send(0,2 ,rank_);
+				
+				world.send(0,1 ,std::to_string(2));
                 
-                int allowed;
+                int allowed=0;
                 world.recv(0,5,allowed);
-                std::string requestMSg;
-			    world.recv(0,6,requestMSg);
+                //std::string requestMSg;
+			    //world.recv(0,6,requestMSg);
                 
                 if(allowed==1){
 					std::string data;
@@ -139,12 +161,14 @@ bool laganina_e_readers_writers_mpi::TestMPITaskParallel::run() {
                     // Запрос завершения записи
 				
                   
-                    world.send(0, 2,rank);
+                    world.send(0, 2,rank_);
 
-					world.send(0, 1,4);
+					world.send(0, 1,std::to_string(4));
+					
 					world.send(0,7,data);
 					
                 }
+				i++;
             }
         }
 		

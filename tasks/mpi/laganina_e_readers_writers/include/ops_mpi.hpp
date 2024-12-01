@@ -25,7 +25,7 @@ class TestMPITaskParallel : public ppc::core::Task {
   bool post_processing() override;
 
  private:
-  int time{};
+  int iter{};
   int res_;
   
   boost::mpi::communicator world;
